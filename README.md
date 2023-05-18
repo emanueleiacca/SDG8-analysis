@@ -34,7 +34,7 @@ In the same way we have divided the countries into 4 different groups, but in th
 -High income
 -Low income
 GDP per capita vs GDP for each employee
-The values ​​in the table are obtained from the difference of the percentage of GDP per employee minus the percentage of GDP per person.
+The values in the table are obtained from the difference of the percentage of GDP per employee minus the percentage of GDP per person.
 If the growth rate of GDP per capita is higher than the growth rate of GDP per person employed, this could indicate that the country is generating new jobs, but at the same time the average income per worker is not rising fast. On the other hand, if the growth rate of GDP per person employed is higher than the growth rate of GDP per capita, this could indicate that the country is improving labor productivity and economic efficiency, but also that the growth of population could limit the growth of per capita GDP.
 (ex in Italy between 2008 and 2009 when there was an increase in the unemployment rate)
 Domestic Material Consumption
@@ -47,4 +47,4 @@ Raw materials
 Number of Atm and Number of banks reflect the cluster we made for GDP (about banks is interesting to study the abnomal value of Bulgaria due to their excess of banks)
 UNEMPLOYMENT
 Through the dataset we  made on percentage differences we study the year-by-year variation of the percentage of unemployed. In particular, in RED those variations that have led to a strong growth in unemployment are marked; in GREEN we have instead marked the variations in which there was a sharp decrease in unemployment.
-These values ​​represent business cycles: the 3 economic cycles are expansion , recovery and recession 
+These values represent business cycles: the 3 economic cycles are expansion , recovery and recession 
