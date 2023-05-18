@@ -1,0 +1,307 @@
+#FB_CBK_BRCH
+```{r}
+library(readxl)
+
+# Leggi il file Excel e seleziona fino alla riga 417
+FB_CBK_BRCH <- read_excel("C:/Users/39388/Downloads/dataset/FB_CBK_BRCH.xlsx")
+cols_to_remove <- c("Goal", "Target", "Indicator", "SeriesCode", "SeriesDescription", 
+                    "GeoAreaCode", "BasePeriod", "Source", "Units", "Observation Status", 
+                    "Nature", "Reporting Type","Time_Detail")
+FB_CBK_BRCH <- FB_CBK_BRCH[, !(names(FB_CBK_BRCH) %in% cols_to_remove)]
+FB_CBK_BRCH <- FB_CBK_BRCH %>%
+  filter(GeoAreaName %in% SL_EMP_PCAP$GeoAreaName)
+sum(is.na(FB_CBK_BRCH))
+```
+
+```{r}
+group_1 <- c("Bangladesh", "Benin", "Burkina Faso", "Burundi", "Cambodia", "Cameroon", "Central African Republic", "Chad", "China",
+             "Comoros", "Congo", "Ethiopia", "Gambia", "Ghana", "Guinea", "Haiti", "Honduras", "India", "Kenya", "Kyrgyzstan", "Lesotho",
+             "Liberia", "Madagascar", "Malawi", "Mali", "Mozambique", "Myanmar", "Nepal", "Nicaragua", "Niger", "Pakistan", "Papua New Guinea",
+             "Rwanda", "Senegal", "Sierra Leone", "Solomon Islands", "Tajikistan", "Togo", "Uganda", "Uzbekistan", "Zambia", "Zimbabwe")
+
+group_2 <- c("Albania", "Angola", "Armenia", "Azerbaijan", "Barbados", "Belarus", "Belize", "Brazil", "Colombia", "Dominican Republic",
+             "Ecuador", "Egypt", "El Salvador", "Eswatini", "Fiji", "Georgia", "Guatemala", "Guyana", "Indonesia", "Jamaica", "Mauritania",
+             "Mongolia", "Morocco", "Namibia", "Paraguay", "Peru", "Philippines", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa",
+             "Sri Lanka", "Thailand", "Tonga", "Tunisia", "Ukraine", "World")
+group_3 <- c("Algeria", "Argentina", "Bosnia and Herzegovina", "Botswana", "Bulgaria", "Chile", "Costa Rica", "Croatia", "Cyprus",
+             "Czechia", "Estonia", "Gabon", "Hungary", "Iraq", "Jordan", "Kazakhstan", "Latvia", "Libya", "Lithuania", "Malaysia",
+             "Maldives", "Mauritius", "Mexico", "North Macedonia", "Panama", "Poland", "Portugal", "Romania", "Serbia", "Slovakia",
+             "Slovenia", "South Africa", "Trinidad and Tobago", "Uruguay")
+group_4 <- c("Australia", "Austria", "Bahamas", "Bahrain", "Belgium", "Canada", "Denmark", "Equatorial Guinea", "Finland", "France",
+             "Germany", "Greece", "Iceland", "Ireland", "Israel", "Italy", "Japan", "Kuwait", "Luxembourg", "Malta", "Netherlands",
+             "New Zealand", "Norway", "Oman", "Qatar", "Saudi Arabia", "Singapore", "Spain", "Sweden", "Switzerland", "United Arab Emirates")
+
+# Creazione del dataset per il Gruppo 1
+group_1_dataset <- FB_CBK_BRCH[FB_CBK_BRCH$GeoAreaName %in% group_1, ]
+# Creazione del dataset per il Gruppo 2
+group_2_dataset <- FB_CBK_BRCH[FB_CBK_BRCH$GeoAreaName %in% group_2, ]
+# Creazione del dataset per il Gruppo 3
+group_3_dataset <- FB_CBK_BRCH[FB_CBK_BRCH$GeoAreaName %in% group_3, ]
+# Creazione del dataset per il Gruppo 4
+group_4_dataset <- FB_CBK_BRCH[FB_CBK_BRCH$GeoAreaName %in% group_4, ]
+
+
+```
+
+```{r}
+# Conversione delle colonne in numeri
+group_4_dataset[, -(1)] <- sapply(group_4_dataset[, -(1)], as.numeric)
+percent_changes <- apply(group_4_dataset[, -(1:2)], 1, function(x) {
+  percent_change <- c(NA, diff(rev(x)) / rev(x[-1])) * 100
+  percent_change <- rev(percent_change)
+  percent_change
+})
+
+percent_changes <- t(percent_changes)
+
+as.data.frame(percent_changes)
+
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg <- apply(percent_changes, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+
+# Visualizzazione dei risultati
+print(weighted_avg)
+group_4_dataset_new <- group_4_dataset %>%
+  select(-c(GeoAreaName, Age))
+weighted_avg=as.data.frame(weighted_avg)
+for (i in (ncol(group_4_dataset_new)-1):1) {
+  for (j in nrow(group_4_dataset_new):1) {
+    if (is.na(group_4_dataset_new[j, i])) {
+      group_4_dataset_new[j, i] <- group_4_dataset_new[j, i+1]*(1+weighted_avg[i,1]/100)
+    }
+  }
+}
+# Calcolo della variazione percentuale per ogni riga
+percent_changes2 <- apply(group_4_dataset[, -(1:2)], 1, function(x) {
+  percent_change <- c(NA, diff(x) / lag(x[-1], default = x[1])) * 100
+  percent_change
+})
+percent_changes2 <- t(percent_changes2)
+
+as.data.frame(percent_changes)
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg2 <- apply(percent_changes2, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+group_4_dataset_new2 <- group_4_dataset %>%
+  select(-c(GeoAreaName, Age))
+weighted_avg2=as.data.frame(weighted_avg2)
+for (i in (ncol(group_4_dataset_new2)):2) {
+  for (j in nrow(group_4_dataset_new2):1) {
+    if (is.na(group_4_dataset_new2[j, i])) {
+      group_4_dataset_new2[j, i] <- group_4_dataset_new2[j, i-1]*(1+weighted_avg2[i,1]/100)
+    }
+  }
+}
+group_4_dataset_new[, ncol(group_4_dataset_new)] <- group_4_dataset_new2[, ncol(group_4_dataset_new2)]
+group_4_dataset_new <- cbind(group_4_dataset[, 1], group_4_dataset_new)
+```
+
+```{r}
+
+# Conversione delle colonne in numeri
+group_3_dataset[, -(1)] <- sapply(group_3_dataset[, -(1)], as.numeric)
+percent_changes <- apply(group_3_dataset[, -(1:2)], 1, function(x) {
+  percent_change <- c(NA, diff(rev(x)) / rev(x[-1])) * 100
+  percent_change <- rev(percent_change)
+  percent_change
+})
+
+percent_changes <- t(percent_changes)
+
+as.data.frame(percent_changes)
+
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg <- apply(percent_changes, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+
+# Visualizzazione dei risultati
+print(weighted_avg)
+group_3_dataset_new <- group_3_dataset %>%
+  select(-c(GeoAreaName, Age))
+weighted_avg=as.data.frame(weighted_avg)
+for (i in (ncol(group_3_dataset_new)-1):1) {
+  for (j in nrow(group_3_dataset_new):1) {
+    if (is.na(group_3_dataset_new[j, i])) {
+      group_3_dataset_new[j, i] <- group_3_dataset_new[j, i+1]*(1+weighted_avg[i,1]/100)
+    }
+  }
+}
+# Calcolo della variazione percentuale per ogni riga
+percent_changes2 <- apply(group_3_dataset[, -(1:2)], 1, function(x) {
+  percent_change <- c(NA, diff(x) / lag(x[-1], default = x[1])) * 100
+  percent_change
+})
+percent_changes2 <- t(percent_changes2)
+
+as.data.frame(percent_changes)
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg2 <- apply(percent_changes2, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+group_3_dataset_new2 <- group_3_dataset %>%
+  select(-c(GeoAreaName, Age))
+weighted_avg2=as.data.frame(weighted_avg2)
+for (i in (ncol(group_3_dataset_new2)):2) {
+  for (j in nrow(group_3_dataset_new2):1) {
+    if (is.na(group_3_dataset_new2[j, i])) {
+      group_3_dataset_new2[j, i] <- group_3_dataset_new2[j, i-1]*(1+weighted_avg2[i,1]/100)
+    }
+  }
+}
+group_3_dataset_new[, ncol(group_3_dataset_new)] <- group_3_dataset_new2[, ncol(group_3_dataset_new2)]
+group_3_dataset_new <- cbind(group_3_dataset[, 1], group_3_dataset_new)
+
+```
+
+```{r}
+# Conversione delle colonne in numeri
+group_2_dataset[, -(1)] <- sapply(group_2_dataset[, -(1)], as.numeric)
+percent_changes <- apply(group_2_dataset[, -(1:2)], 1, function(x) {
+  percent_change <- c(NA, diff(rev(x)) / rev(x[-1])) * 100
+  percent_change <- rev(percent_change)
+  percent_change
+})
+
+percent_changes <- t(percent_changes)
+
+as.data.frame(percent_changes)
+
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg <- apply(percent_changes, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+
+# Visualizzazione dei risultati
+print(weighted_avg)
+group_2_dataset_new <- group_2_dataset %>%
+  select(-c(GeoAreaName, Age))
+weighted_avg=as.data.frame(weighted_avg)
+for (i in (ncol(group_2_dataset_new)-1):1) {
+  for (j in nrow(group_2_dataset_new):1) {
+    if (is.na(group_2_dataset_new[j, i])) {
+      group_2_dataset_new[j, i] <- group_2_dataset_new[j, i+1]*(1+weighted_avg[i,1]/100)
+    }
+  }
+}
+# Calcolo della variazione percentuale per ogni riga
+percent_changes2 <- apply(group_2_dataset[, -(1:2)], 1, function(x) {
+  percent_change <- c(NA, diff(x) / lag(x[-1], default = x[1])) * 100
+  percent_change
+})
+percent_changes2 <- t(percent_changes2)
+
+as.data.frame(percent_changes)
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg2 <- apply(percent_changes2, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+group_2_dataset_new2 <- group_2_dataset %>%
+  select(-c(GeoAreaName, Age))
+weighted_avg2=as.data.frame(weighted_avg2)
+for (i in (ncol(group_2_dataset_new2)):2) {
+  for (j in nrow(group_2_dataset_new2):1) {
+    if (is.na(group_2_dataset_new2[j, i])) {
+      group_2_dataset_new2[j, i] <- group_2_dataset_new2[j, i-1]*(1+weighted_avg2[i,1]/100)
+    }
+  }
+}
+group_2_dataset_new[, ncol(group_2_dataset_new)] <- group_2_dataset_new2[, ncol(group_2_dataset_new2)]
+group_2_dataset_new <- cbind(group_2_dataset[, 1], group_2_dataset_new)
+
+```
+
+```{r}
+# Conversione delle colonne in numeri
+group_1_dataset[, -(1)] <- sapply(group_1_dataset[, -(1)], as.numeric)
+percent_changes <- apply(group_1_dataset[, -(1:2)], 1, function(x) {
+  percent_change <- c(NA, diff(rev(x)) / rev(x[-1])) * 100
+  percent_change <- rev(percent_change)
+  percent_change
+})
+
+percent_changes <- t(percent_changes)
+
+as.data.frame(percent_changes)
+
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg <- apply(percent_changes, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+
+# Visualizzazione dei risultati
+print(weighted_avg)
+group_1_dataset_new <- group_1_dataset %>%
+  select(-c(GeoAreaName, Age))
+weighted_avg=as.data.frame(weighted_avg)
+for (i in (ncol(group_1_dataset_new)-1):1) {
+  for (j in nrow(group_1_dataset_new):1) {
+    if (is.na(group_1_dataset_new[j, i])) {
+      group_1_dataset_new[j, i] <- group_1_dataset_new[j, i+1]*(1+weighted_avg[i,1]/100)
+    }
+  }
+}
+# Calcolo della variazione percentuale per ogni riga
+percent_changes2 <- apply(group_1_dataset[, -(1:2)], 1, function(x) {
+  percent_change <- c(NA, diff(x) / lag(x[-1], default = x[1])) * 100
+  percent_change
+})
+percent_changes2 <- t(percent_changes2)
+
+as.data.frame(percent_changes)
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg2 <- apply(percent_changes2, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+group_1_dataset_new2 <- group_1_dataset %>%
+  select(-c(GeoAreaName, Age))
+weighted_avg2=as.data.frame(weighted_avg2)
+for (i in (ncol(group_1_dataset_new2)):2) {
+  for (j in nrow(group_1_dataset_new2):1) {
+    if (is.na(group_1_dataset_new2[j, i])) {
+      group_1_dataset_new2[j, i] <- group_1_dataset_new2[j, i-1]*(1+weighted_avg2[i,1]/100)
+    }
+  }
+}
+group_1_dataset_new[, ncol(group_1_dataset_new)] <- group_1_dataset_new2[, ncol(group_1_dataset_new2)]
+group_1_dataset_new <- cbind(group_1_dataset[, 1], group_1_dataset_new)
+
+```
+
+```{r}
+library(dplyr)
+
+combined_dataset <- rbind(group_1_dataset_new, group_2_dataset_new, group_3_dataset_new, group_4_dataset_new)
+
+combined_dataset <- combined_dataset %>%
+  arrange(GeoAreaName)
+#Commercial bank branches (per 100000 adults)
+group_1 <- c("Bangladesh", "Benin", "Burkina Faso", "Burundi", "Cambodia", "Cameroon", "Central African Republic", "Chad", "China",
+             "Comoros", "Congo", "Ethiopia", "Gambia", "Ghana", "Guinea", "Haiti", "Honduras", "India", "Kenya", "Kyrgyzstan", "Lesotho",
+             "Liberia", "Madagascar", "Malawi", "Mali", "Mozambique", "Myanmar", "Nepal", "Nicaragua", "Niger", "Pakistan", "Papua New Guinea",
+             "Rwanda", "Senegal", "Sierra Leone", "Solomon Islands", "Tajikistan", "Togo", "Uganda", "Uzbekistan", "Zambia", "Zimbabwe")
+
+group_2 <- c("Albania", "Angola", "Armenia", "Azerbaijan", "Barbados", "Belarus", "Belize", "Brazil", "Colombia", "Dominican Republic",
+             "Ecuador", "Egypt", "El Salvador", "Eswatini", "Fiji", "Georgia", "Guatemala", "Guyana", "Indonesia", "Jamaica", "Mauritania",
+             "Mongolia", "Morocco", "Namibia", "Paraguay", "Peru", "Philippines", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa",
+             "Sri Lanka", "Thailand", "Tonga", "Tunisia", "Ukraine", "World")
+group_3 <- c("Algeria", "Argentina", "Bosnia and Herzegovina", "Botswana", "Bulgaria", "Chile", "Costa Rica", "Croatia", "Cyprus",
+             "Czechia", "Estonia", "Gabon", "Hungary", "Iraq", "Jordan", "Kazakhstan", "Latvia", "Libya", "Lithuania", "Malaysia",
+             "Maldives", "Mauritius", "Mexico", "North Macedonia", "Panama", "Poland", "Portugal", "Romania", "Serbia", "Slovakia",
+             "Slovenia", "South Africa", "Trinidad and Tobago", "Uruguay")
+group_4 <- c("Australia", "Austria", "Bahamas", "Bahrain", "Belgium", "Canada", "Denmark", "Equatorial Guinea", "Finland", "France",
+             "Germany", "Greece", "Iceland", "Ireland", "Israel", "Italy", "Japan", "Kuwait", "Luxembourg", "Malta", "Netherlands",
+             "New Zealand", "Norway", "Oman", "Qatar", "Saudi Arabia", "Singapore", "Spain", "Sweden", "Switzerland", "United Arab Emirates")
+
+
+```
+
+```{r}
+library(ggplot2)
+
+# Trasformazione del dataframe da formato wide a formato long
+df_long <- tidyr::pivot_longer(combined_dataset, cols = starts_with("2"), names_to = "Year", values_to = "Value")
+# Conversione del campo Year in formato numerico
+df_long$Year <- as.numeric(gsub("X", "", df_long$Year))
+df_long$Group=ifelse(df_long$GeoAreaName %in% group_1, "GROUP_1",
+        ifelse(df_long$GeoAreaName %in% group_2, "GROUP_2",
+               ifelse(df_long$GeoAreaName %in% group_3, "GROUP_3",
+                      ifelse(df_long$GeoAreaName %in% group_4, "GROUP_4", ""))))
+
+# Creazione del grafico con linee separate per ogni paese e colori basati sui gruppi
+ggplot(df_long[1:504,], aes(x = Year, y = Value, color = Group, group = GeoAreaName)) +
+  geom_path() +
+  labs(x = "Anno", y = "Valore", color = "Gruppo") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  scale_x_continuous(labels = function(x) as.integer(x))
+
+
+```

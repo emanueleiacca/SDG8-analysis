@@ -1,0 +1,317 @@
+#ST_GDP_ZS,Tourism direct GDP as a proportion of total GDP
+```{r}
+library(readxl)
+
+# Leggi il file Excel e seleziona fino alla riga 417
+ST_GDP_ZS <- read_excel("C:/Users/39388/Downloads/dataset/ST_GDP_ZS.xlsx")
+cols_to_remove <- c("Goal", "Target", "Indicator", "SeriesCode", "SeriesDescription", 
+                    "GeoAreaCode", "BasePeriod", "Source", "Units", "Observation Status", 
+                    "Nature", "Reporting Type","Time_Detail")
+ST_GDP_ZS <- ST_GDP_ZS[, !(names(ST_GDP_ZS) %in% cols_to_remove)]
+ST_GDP_ZS <- ST_GDP_ZS %>%
+  filter(GeoAreaName %in% SL_EMP_PCAP$GeoAreaName)
+sum(is.na(ST_GDP_ZS))
+
+```
+
+```{r}
+
+group_1 <- c("Bangladesh", "Benin", "Burkina Faso", "Burundi", "Cambodia", "Cameroon", "Central African Republic", "Chad", "China",
+             "Comoros", "Congo", "Ethiopia", "Gambia", "Ghana", "Guinea", "Haiti", "Honduras", "India", "Kenya", "Kyrgyzstan", "Lesotho",
+             "Liberia", "Madagascar", "Malawi", "Mali", "Mozambique", "Myanmar", "Nepal", "Nicaragua", "Niger", "Pakistan", "Papua New Guinea",
+             "Rwanda", "Senegal", "Sierra Leone", "Solomon Islands", "Tajikistan", "Togo", "Uganda", "Uzbekistan", "Zambia", "Zimbabwe")
+
+group_2 <- c("Albania", "Angola", "Armenia", "Azerbaijan", "Barbados", "Belarus", "Belize", "Brazil", "Colombia", "Dominican Republic",
+             "Ecuador", "Egypt", "El Salvador", "Eswatini", "Fiji", "Georgia", "Guatemala", "Guyana", "Indonesia", "Jamaica", "Mauritania",
+             "Mongolia", "Morocco", "Namibia", "Paraguay", "Peru", "Philippines", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa",
+             "Sri Lanka", "Thailand", "Tonga", "Tunisia", "Ukraine", "World")
+group_3 <- c("Algeria", "Argentina", "Bosnia and Herzegovina", "Botswana", "Bulgaria", "Chile", "Costa Rica", "Croatia", "Cyprus",
+             "Czechia", "Estonia", "Gabon", "Hungary", "Iraq", "Jordan", "Kazakhstan", "Latvia", "Libya", "Lithuania", "Malaysia",
+             "Maldives", "Mauritius", "Mexico", "North Macedonia", "Panama", "Poland", "Portugal", "Romania", "Serbia", "Slovakia",
+             "Slovenia", "South Africa", "Trinidad and Tobago", "Uruguay")
+group_4 <- c("Australia", "Austria", "Bahamas", "Bahrain", "Belgium", "Canada", "Denmark", "Equatorial Guinea", "Finland", "France",
+             "Germany", "Greece", "Iceland", "Ireland", "Israel", "Italy", "Japan", "Kuwait", "Luxembourg", "Malta", "Netherlands",
+             "New Zealand", "Norway", "Oman", "Qatar", "Saudi Arabia", "Singapore", "Spain", "Sweden", "Switzerland", "United Arab Emirates")
+
+# Creazione del dataset per il Gruppo 1
+group_1_dataset <- ST_GDP_ZS[ST_GDP_ZS$GeoAreaName %in% group_1, ]
+# Creazione del dataset per il Gruppo 2
+group_2_dataset <- ST_GDP_ZS[ST_GDP_ZS$GeoAreaName %in% group_2, ]
+# Creazione del dataset per il Gruppo 3
+group_3_dataset <- ST_GDP_ZS[ST_GDP_ZS$GeoAreaName %in% group_3, ]
+# Creazione del dataset per il Gruppo 4
+group_4_dataset <- ST_GDP_ZS[ST_GDP_ZS$GeoAreaName %in% group_4, ]
+```
+
+```{r}
+# Conversione delle colonne in numeri
+group_4_dataset[, -(1)] <- sapply(group_4_dataset[, -(1)], as.numeric)
+percent_changes <- apply(group_4_dataset[, -(1)], 1, function(x) {
+  percent_change <- c(NA, diff(rev(x)) / rev(x[-1])) * 100
+  percent_change <- rev(percent_change)
+  percent_change
+})
+
+percent_changes <- t(percent_changes)
+
+as.data.frame(percent_changes)
+
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg <- apply(percent_changes, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+
+# Visualizzazione dei risultati
+print(weighted_avg)
+group_4_dataset_new <- group_4_dataset %>%
+  select(-c(GeoAreaName))
+weighted_avg=as.data.frame(weighted_avg)
+for (i in (ncol(group_4_dataset_new)-1):1) {
+  for (j in nrow(group_4_dataset_new):1) {
+    if (is.na(group_4_dataset_new[j, i])) {
+      group_4_dataset_new[j, i] <- group_4_dataset_new[j, i+1]*(1+weighted_avg[i,1]/100)
+    }
+  }
+}
+# Calcolo della variazione percentuale per ogni riga
+percent_changes2 <- apply(group_4_dataset[, -(1)], 1, function(x) {
+  percent_change <- c(NA, diff(x) / lag(x[-1], default = x[1])) * 100
+  percent_change
+})
+percent_changes2 <- t(percent_changes2)
+
+as.data.frame(percent_changes)
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg2 <- apply(percent_changes2, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+group_4_dataset_new2 <- group_4_dataset_new 
+weighted_avg2=as.data.frame(weighted_avg2)
+for (i in (ncol(group_4_dataset_new2)):2) {
+  for (j in (nrow(group_4_dataset_new2)):1) {
+    if (is.na(group_4_dataset_new2[j, i])) {
+      group_4_dataset_new2[j, i] <- group_4_dataset_new2[j, i-1]*(1+weighted_avg2[i,1]/100)
+    }
+  }
+}
+group_4_dataset_new[, ncol(group_4_dataset_new)] <- group_4_dataset_new2[, (ncol(group_4_dataset_new2))]
+group_4_dataset_new <- cbind(group_4_dataset[, 1], group_4_dataset_new)# Rimuovi le ultime due colonne
+group_4_dataset_new <- group_4_dataset_new[, -c(14,15)]
+
+# Conta i valori mancanti per ogni riga
+missing_values <- apply(group_4_dataset_new, 1, function(x) sum(is.na(x)))
+
+# Seleziona solo le righe con al massimo due valori mancanti
+group_4_dataset_new <- group_4_dataset_new[missing_values <= 2, ]
+# Controlla se ci sono dati mancanti nel dataframe
+if (anyNA(group_4_dataset_new)) {
+  print("Il dataframe contiene dati mancanti.")
+} else {
+  print("Il dataframe non contiene dati mancanti.")
+}
+
+```
+```{r}
+library(zoo)
+# Conversione delle colonne in numeri
+group_3_dataset[, -(1)] <- sapply(group_3_dataset[, -(1)], as.numeric)
+percent_changes <- apply(group_3_dataset[, -(1:2)], 1, function(x) {
+  percent_change <- c(NA, diff(rev(x)) / rev(x[-1])) * 100
+  percent_change <- rev(percent_change)
+  percent_change
+})
+
+percent_changes <- t(percent_changes)
+
+as.data.frame(percent_changes)
+
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg <- apply(percent_changes, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+
+# Visualizzazione dei risultati
+print(weighted_avg)
+group_3_dataset_new <- group_3_dataset %>%
+  select(-c(GeoAreaName))
+weighted_avg=as.data.frame(weighted_avg)
+for (i in (ncol(group_3_dataset_new)-1):1) {
+  for (j in nrow(group_3_dataset_new):1) {
+    if (is.na(group_3_dataset_new[j, i])) {
+      group_3_dataset_new[j, i] <- group_3_dataset_new[j, i+1]*(1+weighted_avg[i,1]/100)
+    }
+  }
+}
+# Calcolo della variazione percentuale per ogni riga
+percent_changes2 <- apply(group_3_dataset[, -(1:2)], 1, function(x) {
+  percent_change <- c(NA, diff(x) / lag(x[-1], default = x[1])) * 100
+  percent_change
+})
+percent_changes2 <- t(percent_changes2)
+
+as.data.frame(percent_changes)
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg2 <- apply(percent_changes2, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+group_3_dataset_new2 <- group_3_dataset %>%
+  select(-c(GeoAreaName))
+weighted_avg2=as.data.frame(weighted_avg2)
+for (i in (ncol(group_3_dataset_new2)):2) {
+  for (j in nrow(group_3_dataset_new2):1) {
+    if (is.na(group_3_dataset_new2[j, i])) {
+      group_3_dataset_new2[j, i] <- group_3_dataset_new2[j, i-1]*(1+weighted_avg2[i,1]/100)
+    }
+  }
+}
+group_3_dataset_new[, ncol(group_3_dataset_new)] <- group_3_dataset_new2[, ncol(group_3_dataset_new2)]
+group_3_dataset_new <- cbind(group_3_dataset[, 1], group_3_dataset_new)
+group_3_dataset_new <- group_3_dataset_new[, -c(14,15)]
+
+# Conta i valori mancanti per ogni riga
+missing_values <- apply(group_3_dataset_new, 1, function(x) sum(is.na(x)))
+
+# Seleziona solo le righe con al massimo due valori mancanti
+group_3_dataset_new <- group_3_dataset_new[missing_values <= 2, ]
+group_3_dataset_new <- na.locf(group_3_dataset_new, na.rm = FALSE, fromLast = FALSE)
+
+```
+
+```{r}
+# Conversione delle colonne in numeri
+group_2_dataset[, -(1)] <- sapply(group_2_dataset[, -(1)], as.numeric)
+percent_changes <- apply(group_2_dataset[, -(1:2)], 1, function(x) {
+  percent_change <- c(NA, diff(rev(x)) / rev(x[-1])) * 100
+  percent_change <- rev(percent_change)
+  percent_change
+})
+
+percent_changes <- t(percent_changes)
+
+as.data.frame(percent_changes)
+
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg <- apply(percent_changes, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+
+# Visualizzazione dei risultati
+print(weighted_avg)
+group_2_dataset_new <- group_2_dataset %>%
+  select(-c(GeoAreaName))
+weighted_avg=as.data.frame(weighted_avg)
+for (i in (ncol(group_2_dataset_new)-1):1) {
+  for (j in nrow(group_2_dataset_new):1) {
+    if (is.na(group_2_dataset_new[j, i])) {
+      group_2_dataset_new[j, i] <- group_2_dataset_new[j, i+1]*(1+weighted_avg[i,1]/100)
+    }
+  }
+}
+# Calcolo della variazione percentuale per ogni riga
+percent_changes2 <- apply(group_2_dataset[, -(1:2)], 1, function(x) {
+  percent_change <- c(NA, diff(x) / lag(x[-1], default = x[1])) * 100
+  percent_change
+})
+percent_changes2 <- t(percent_changes2)
+
+as.data.frame(percent_changes)
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg2 <- apply(percent_changes2, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+group_2_dataset_new2 <- group_2_dataset %>%
+  select(-c(GeoAreaName))
+weighted_avg2=as.data.frame(weighted_avg2)
+for (i in (ncol(group_2_dataset_new2)):2) {
+  for (j in nrow(group_2_dataset_new2):1) {
+    if (is.na(group_2_dataset_new2[j, i])) {
+      group_2_dataset_new2[j, i] <- group_2_dataset_new2[j, i-1]*(1+weighted_avg2[i,1]/100)
+    }
+  }
+}
+group_2_dataset_new[, ncol(group_2_dataset_new)] <- group_2_dataset_new2[, ncol(group_2_dataset_new2)]
+group_2_dataset_new <- cbind(group_2_dataset[, 1], group_2_dataset_new)
+group_2_dataset_new <- group_2_dataset_new[, -c(14,15)]
+
+# Conta i valori mancanti per ogni riga
+missing_values <- apply(group_2_dataset_new, 1, function(x) sum(is.na(x)))
+
+# Seleziona solo le righe con al massimo due valori mancanti
+group_2_dataset_new <- group_2_dataset_new[missing_values <= 2, ]
+
+# Sostituisci i valori mancanti con il valore alla sinistra
+group_2_dataset_new <- na.locf(group_2_dataset_new, na.rm = FALSE, fromLast = FALSE)
+# Controlla se ci sono dati mancanti nel dataframe
+
+```
+
+```{r}
+# Conversione delle colonne in numeri
+group_1_dataset[, -(1)] <- sapply(group_1_dataset[, -(1)], as.numeric)
+percent_changes <- apply(group_1_dataset[, -(1:2)], 1, function(x) {
+  percent_change <- c(NA, diff(rev(x)) / rev(x[-1])) * 100
+  percent_change <- rev(percent_change)
+  percent_change
+})
+
+percent_changes <- t(percent_changes)
+
+as.data.frame(percent_changes)
+
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg <- apply(percent_changes, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+
+# Visualizzazione dei risultati
+print(weighted_avg)
+group_1_dataset_new <- group_1_dataset %>%
+  select(-c(GeoAreaName))
+weighted_avg=as.data.frame(weighted_avg)
+for (i in (ncol(group_1_dataset_new)-1):1) {
+  for (j in nrow(group_1_dataset_new):1) {
+    if (is.na(group_1_dataset_new[j, i])) {
+      group_1_dataset_new[j, i] <- group_1_dataset_new[j, i+1]*(1+weighted_avg[i,1]/100)
+    }
+  }
+}
+# Calcolo della variazione percentuale per ogni riga
+percent_changes2 <- apply(group_1_dataset[, -(1:2)], 1, function(x) {
+  percent_change <- c(NA, diff(x) / lag(x[-1], default = x[1])) * 100
+  percent_change
+})
+percent_changes2 <- t(percent_changes2)
+
+as.data.frame(percent_changes)
+# Calcolo della media con peso minore per i valori anomali
+weighted_avg2 <- apply(percent_changes2, 2, function(x) weighted.mean(x, 1 - is.na(x)))
+group_1_dataset_new2 <- group_1_dataset %>%
+  select(-c(GeoAreaName))
+weighted_avg2=as.data.frame(weighted_avg2)
+for (i in (ncol(group_1_dataset_new2)):2) {
+  for (j in nrow(group_1_dataset_new2):1) {
+    if (is.na(group_1_dataset_new2[j, i])) {
+      group_1_dataset_new2[j, i] <- group_1_dataset_new2[j, i-1]*(1+weighted_avg2[i,1]/100)
+    }
+  }
+}
+group_1_dataset_new[, ncol(group_1_dataset_new)] <- group_1_dataset_new2[, ncol(group_1_dataset_new2)]
+group_1_dataset_new <- cbind(group_1_dataset[, 1], group_1_dataset_new)
+group_1_dataset_new <- group_1_dataset_new[, -c(14,15)]
+
+# Conta i valori mancanti per ogni riga
+missing_values <- apply(group_1_dataset_new, 1, function(x) sum(is.na(x)))
+
+# Seleziona solo le righe con al massimo due valori mancanti
+group_1_dataset_new <- group_1_dataset_new[missing_values <= 2, ]
+for (i in 2:ncol(group_1_dataset_new)) {
+  for (j in 1:nrow(group_1_dataset_new)) {
+    if (is.na(group_1_dataset_new[j, i])) {
+      group_1_dataset_new[j, i] <- group_1_dataset_new[j, i - 1]
+    }
+  }
+}
+if (anyNA(group_1_dataset_new)) {
+  print("Il dataframe contiene dati mancanti.")
+} else {
+  print("Il dataframe non contiene dati mancanti.")
+}
+```
+
+```{r}
+library(dplyr)
+
+turism_dataset <- rbind(group_1_dataset_new, group_2_dataset_new, group_3_dataset_new, group_4_dataset_new)
+
+turism_dataset <- turism_dataset %>%
+  arrange(GeoAreaName)
+```
+
+i dati mancanti sono stati imputati in questo modo: non siamo riusciti ad applicare tecniche di interpolazione bidimensionali(diciamo la cui formula agisce su un piano 3D)dovendo considerare sia il trend del tempo che i valori dei singoli paesi.
+Abbiamo quindi innanzitutto diviso i paesi secondo la suddivisione data dal cluster del GDP per prendere i valori "piu' simili", quindi calcoliamo la variazione % anno per anno pesata per tenere a bada eventuali valori mancanti e farci un idea della tendenza annuale, in caso di eventuali valori mancanti viene quindi preso il valore precedente e moltiplicato per il tasso di variazione % rispetto all'anno successivo

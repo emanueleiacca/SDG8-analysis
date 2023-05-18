@@ -636,7 +636,7 @@ indicatore_GDP_final_long <- indicatore_GDP_final_long %>%
 # Crea il grafico utilizzando la colonna "Entity" come etichetta sull'asse x
 ggplot(indicatore_GDP_final_long, aes(x = GeoAreaName, y = valore, color = factor(Group))) +
   geom_point() +
-  labs(title = "Analisi Cluster dell'HDI per Paese (anno 2001)",
+  labs(title = "Analisi Cluster dell'GDP per Paese (anno 2001)",
        x = "Paese",
        y = "Valore del Reddito",
        color = "Gruppo") +
@@ -811,13 +811,34 @@ for (k in 1:length(types_of_product)) {
 
 ```{r}
 types_of_product
-correlation_df <- as.data.frame(correlation_list[11]) #arriva fino a 13, type of product [[2,9,10,12]]  non serve
+correlation_df <- as.data.frame(correlation_list[1]) #arriva fino a 13, type of product [[2,9,10,12]]  non serve
 correlation_df
 # Rimuovi la riga 23 dal dataframe correlation_df
 correlation_df <- correlation_df[-23, ]
 
 # Seleziona solo le prime 20 osservazioni dal dataframe correlation_df
 
+# Plottaggio del grafico a barre con personalizzazioni
+ggplot(correlation_df[1:30,], aes(x = paesi, y = correlation)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "", y = "Correlazione") +
+  ggtitle("Correlazione tra Carbone e GDP") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.margin = unit(c(2, 10, 2, 2), "lines"))
+
+correlation_df <- as.data.frame(correlation_list[11]) #arriva fino a 13, type of product [[2,9,10,12]]  non serve
+correlation_df
+# Rimuovi la riga 23 dal dataframe correlation_df
+correlation_df <- correlation_df[-23, ]
+
+# Seleziona solo le prime 20 osservazioni dal dataframe correlation_df
 # Plottaggio del grafico a barre con personalizzazioni
 ggplot(correlation_df[61:90,], aes(x = paesi, y = correlation)) +
   geom_bar(stat = "identity", fill = "steelblue") +
@@ -833,6 +854,48 @@ ggplot(correlation_df[61:90,], aes(x = paesi, y = correlation)) +
         panel.border = element_blank(),
         plot.margin = unit(c(2, 10, 2, 2), "lines"))
 
+
+correlation_df <- as.data.frame(correlation_list[8]) #arriva fino a 13, type of product [[2,9,10,12]]  non serve
+correlation_df
+# Rimuovi la riga 23 dal dataframe correlation_df
+correlation_df <- correlation_df[-23, ]
+
+# Seleziona solo le prime 20 osservazioni dal dataframe correlation_df
+# Plottaggio del grafico a barre con personalizzazioni
+ggplot(correlation_df[31:60,], aes(x = paesi, y = correlation)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "", y = "Correlazione") +
+  ggtitle("Correlazione tra Gas e GDP") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.margin = unit(c(2, 10, 2, 2), "lines"))
+
+correlation_df <- as.data.frame(correlation_list[3]) #arriva fino a 13, type of product [[2,9,10,12]]  non serve
+correlation_df
+# Rimuovi la riga 23 dal dataframe correlation_df
+correlation_df <- correlation_df[-23, ]
+
+# Seleziona solo le prime 20 osservazioni dal dataframe correlation_df
+# Plottaggio del grafico a barre con personalizzazioni
+ggplot(correlation_df[91:120,], aes(x = paesi, y = correlation)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "", y = "Correlazione") +
+  ggtitle("Correlazione tra Agricoltura e GDP") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.margin = unit(c(2, 10, 2, 2), "lines"))
 
 ```
 

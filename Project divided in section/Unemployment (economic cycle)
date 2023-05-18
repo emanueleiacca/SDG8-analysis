@@ -1,0 +1,33 @@
+#Tasso di Disoccupazione
+```{r}
+library(readxl)
+tassodisoccupazione <- read_excel("C:/Users/39388/Downloads/tassodisoccupazione.xls")
+tassodisoccupazione <- na.omit(tassodisoccupazione)
+```
+```{r}
+tassodisoccupazione <- subset(tassodisoccupazione, `Country Name` %in% GDP$GeoAreaName)
+tassodisoccupazione <- subset(tassodisoccupazione, select = -c(dim(tassodisoccupazione)[2]-1, dim(tassodisoccupazione)[2]))
+GDP <- subset(GDP, GeoAreaName %in% tassodisoccupazione$`Country Name`)
+```
+
+```{r}
+# Calcolo delle differenze percentuali tra le annate
+diff_percent <- apply(tassodisoccupazione[, -1], 1, function(x) c(NA, diff(x) / x[-length(x)] * 100))
+diff_percent_inverted <- t(diff_percent)
+
+diff_percent_inverted <- cbind(tassodisoccupazione$`Country Name`, diff_percent_inverted)
+colnames(diff_percent_inverted)[1] <- "CountyName"
+diff_percent_inverted <- diff_percent_inverted[, -2]
+diff_percent_inverted=as.data.frame(diff_percent_inverted)
+```
+
+```{r}
+
+library(writexl)
+
+# Specifica il percorso del file Excel di output
+output_file <- "C:/Users/39388/Downloads/graftassdis.xlsx"
+
+# Scrivi il dataset in un file Excel
+write_xlsx(diff_percent_inverted, output_file)
+```

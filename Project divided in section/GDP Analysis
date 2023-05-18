@@ -1,0 +1,154 @@
+#GDP
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+GDP <- read_csv("C:/Users/39388/Downloads/gdp-per-person-employed-constant-ppp.csv")
+GDP <- GDP %>% 
+  rename(GDPPPE = `GDP per person employed (constant 2017 PPP $)`) %>% 
+  select(-Code)
+GDP <- GDP %>%
+  dplyr::filter(Year >= 2000) %>%
+  group_by(Entity, Year) %>%
+  summarize(GDPPPE=mean(GDPPPE, na.rm = TRUE)) %>%
+  pivot_wider(names_from = Year, values_from = GDPPPE)
+
+GDP <- GDP %>%
+  select(Entity, `2000`, `2001`, `2002`, `2003`, `2004`, `2005`, `2006`, `2007`, `2008`, `2009`, `2010`, `2011`, `2012`, `2013`, `2014`, `2015`, `2016`, `2017`, `2018`, `2019`, `2020`)
+
+GDP <- GDP %>% rename(GeoAreaName = Entity)
+GDP <- GDP %>%
+  filter(GeoAreaName %in% SL_EMP_PCAP$GeoAreaName)
+sum(is.na(GDP))
+library(dplyr)
+valore_max <- max(unlist(GDP[, -c(1)]), na.rm = TRUE)
+valore_min <- min(unlist(GDP[, -c(1)]), na.rm = TRUE)
+
+indicatore_GDP <- GDP %>% 
+  mutate_all(~ (log(.) - log(valore_min))/(log(valore_max)-log(valore_min)))
+```
+
+```{r}
+require(cluster)
+require(factoextra)
+indicatore_GDP <- indicatore_GDP %>% 
+  select(`2000`:`2020`)
+indicatore_GDP=na.omit(indicatore_GDP)
+indicatore_GDP=na.omit(indicatore_GDP)
+set.seed(123)
+indicatore_GDP <- indicatore_GDP[,2:22]
+k <- 4 # Numero di cluster da esplorare
+sil <- silhouette(kmeans(indicatore_GDP, k)$cluster, dist(indicatore_GDP))
+plot(sil)
+
+# Esegui l'analisi cluster con il metodo di clustering gerarchico
+indicatore_GDP_dist <- dist(indicatore_GDP, method = "euclidean")
+indicatore_GDP_hclust <- hclust(indicatore_GDP_dist, method = "ward.D2")
+# Suddividi i paesi in 3 gruppi
+indicatore_GDP_groups <- cutree(indicatore_GDP_hclust, k = k)
+
+# Aggiungi la colonna dei gruppi al dataframe originale
+indicatore_GDP_final <- cbind(indicatore_GDP, Group = indicatore_GDP_groups)
+```
+
+```{r}
+# Visualizza il dendrogramma
+fviz_dend(indicatore_GDP_hclust, k = k)
+
+# Visualizza i cluster in uno spazio bidimensionale
+HDI_pca <- prcomp(indicatore_GDP)
+fviz_cluster(list(data = HDI_pca$x[,1:2], cluster = indicatore_GDP_groups), 
+             geom = "point", 
+             palette = "jco",
+             ggtheme = theme_classic()) + 
+  ggtitle("Clustering gerarchico (Ward.D2) dei paesi") + 
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+indicatore_GDP_means <- rowMeans(indicatore_GDP[, 2:(ncol(indicatore_GDP)-1)], na.rm = TRUE)
+indicatore_GDP_with_means <- cbind(indicatore_GDP_final, indicatore_GDP_means)
+names(indicatore_GDP_with_means)[ncol(indicatore_GDP_with_means)] <- "media"
+indicatore_GDP_means <- indicatore_GDP_with_means %>%
+  group_by(Group) %>%
+  summarize(mean_media = mean(media, na.rm = TRUE))
+indicatore_GDP_group_rank <- indicatore_GDP_means %>%
+  mutate(rank = min_rank(mean_media)) %>%
+  arrange(mean_media)
+indicatore_GDP_df_labed <- indicatore_GDP_final %>% 
+  mutate_all(~ case_when(. == 1 ~ "PMBR", #paesi medio basso reddito
+                         . == 2 ~ "PMAR", #paesi medio alto reddito
+                         . == 3 ~ "PRA", #paesi alto reddito
+                         . == 4 ~ "PRB", #paesi basso reddito 
+                         TRUE ~ as.character(.)))
+```
+
+```{r}
+GDP <- na.omit(GDP)
+
+indicatore_GDP_final <- cbind(GDP[,1], indicatore_GDP_final)
+# Utilizza la funzione unique() per ottenere l'elenco dei gruppi presenti nel dataset
+elenco_gruppi <- unique(indicatore_GDP_final$Group)
+# Calcola la media dei valori per riga
+indicatore_GDP_final$MediaRiga <- rowMeans(indicatore_GDP_final[, -c(1,20)])
+
+# Per ogni gruppo, stampa l'elenco dei paesi corrispondenti e calcola la media dei valori per ogni paese
+for (gruppo in elenco_gruppi) {
+  paesi <- indicatore_GDP_final$GeoAreaName[indicatore_GDP_final$Group == gruppo]
+  cat("Gruppo:", gruppo, "\n")
+  cat("Paesi:", paste(paesi, collapse = ", "), "\n\n")
+  
+  for (paese in paesi) {
+    media_valori <- mean(indicatore_GDP_final$MediaRiga[indicatore_GDP_final$Group == gruppo & indicatore_GDP_final$GeoAreaName == paese])
+    cat("Paese:", paese, "- Media della riga:", media_valori, "\n")
+  }
+  
+  media_valori_gruppo <- mean(indicatore_GDP_final$MediaRiga[indicatore_GDP_final$Group == gruppo])
+  cat("Media dei valori per gruppo:", media_valori_gruppo, "\n\n")
+}
+
+
+
+```
+
+```{r}
+
+  
+# Trasforma il dataframe in formato "long"
+indicatore_GDP_final_long <- gather(indicatore_GDP_final, key = "anno", value = "valore", -c("GeoAreaName", "Group"))
+
+# Converti la colonna "anno" in un valore numerico
+indicatore_GDP_final_long$anno <- as.numeric(indicatore_GDP_final_long$anno)
+indicatore_GDP_final_long <- cbind(indicatore_GDP[,1], indicatore_GDP_final_long)
+
+# Crea il grafico utilizzando la colonna "anno" come asse x
+ggplot(indicatore_GDP_final_long, aes(x = anno, y = valore, color = factor(Group), label = GeoAreaName)) +
+  geom_point() +
+  geom_text(nudge_x = 0.02, nudge_y = 0.02) +
+  labs(title = "Analisi Cluster del Reddito per Paese",
+       x = "Anno",
+       y = "Valore del Reddito",
+       color = "Gruppo") +
+  scale_color_discrete(name = "Gruppo", labels = c("Gruppo 1", "Gruppo 2", "Gruppo 3", "Gruppo 4", "Gruppo 5")) +
+  theme_bw()
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Filtra le righe per l'anno 2006
+indicatore_GDP_final_long <- indicatore_GDP_final_long %>% 
+  filter(anno == 2001)
+
+# Crea il grafico utilizzando la colonna "Entity" come etichetta sull'asse x
+ggplot(indicatore_GDP_final_long, aes(x = GeoAreaName, y = valore, color = factor(Group))) +
+  geom_point() +
+  labs(title = "Analisi Cluster dell'GDP per Paese (anno 2001)",
+       x = "Paese",
+       y = "Valore del Reddito",
+       color = "Gruppo") +
+  scale_color_discrete(name = "Gruppo", labels = c("Gruppo 1", "Gruppo 2", "Gruppo 3", "Gruppo 4", "Gruppo 5")) +
+  coord_flip() +
+  theme_bw()
+```

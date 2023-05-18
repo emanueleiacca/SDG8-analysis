@@ -1,0 +1,253 @@
+#EN_MAT_DOMCMPC,Domestic material consumption per capita, by type of raw material (tonnes) 8.4.2
+```{r}
+library(readxl)
+
+# Leggi il file Excel e seleziona fino alla riga 417
+EN_MAT_DOMCMPC <- read_excel("C:/Users/39388/Downloads/dataset/EN_MAT_DOMCMPC.xlsx")
+cols_to_remove <- c("Goal", "Target", "Indicator", "SeriesCode", "SeriesDescription", 
+                    "GeoAreaCode", "BasePeriod", "Source", "Units", "Observation Status", 
+                    "Nature", "Reporting Type","Time_Detail")
+EN_MAT_DOMCMPC <- EN_MAT_DOMCMPC[, !(names(EN_MAT_DOMCMPC) %in% cols_to_remove)]
+EN_MAT_DOMCMPC <- EN_MAT_DOMCMPC %>%
+  filter(GeoAreaName %in% SL_EMP_PCAP$GeoAreaName)
+sum(is.na(EN_MAT_DOMCMPC))
+```
+```{r}
+split_data <- split(EN_MAT_DOMCMPC, EN_MAT_DOMCMPC$`Type of product`)
+types_of_product <- unique(EN_MAT_DOMCMPC$`Type of product`)
+split_data <- lapply(split_data, function(df) {
+  # Verifica quali nomi nella colonna GeoAreaName si ripetono
+  duplicate_names <- duplicated(df$GeoAreaName)
+  
+  if (any(duplicate_names)) {
+    # Elimina i duplicati
+    df <- unique(df, by = "GeoAreaName")
+  }
+  
+  return(df)
+})
+split_data_EN_MAT_DOMCMPC <- lapply(split_data, function(df) {
+  df %>%
+    filter(GeoAreaName %in% split_data$COL$GeoAreaName)
+})
+```
+
+
+```{r}
+for (i in 1:length(types_of_product)) {
+  missing_values[i] <- sum(is.na(split_data[[types_of_product[i]]]))
+}
+
+types_of_product <- types_of_product[missing_values == 0]
+```
+
+```{r}
+# Inizializza una lista vuota per i dati modificati
+split_data_modified <- list()
+
+# Ciclo for per iterare su ogni prodotto
+for (i in 1:length(types_of_product)) {
+  # Rimuovi la seconda colonna dal dataset del prodotto corrente
+  split_data_modified[[types_of_product[i]]] <- split_data[[types_of_product[i]]][,-2]
+}
+library(dplyr)
+library(tidyr)
+# Inizializza una lista vuota per i dati trasposti
+transposed_data <- list()
+
+# Ciclo for per iterare su ogni prodotto
+for (i in 1:length(types_of_product)) {
+  # Trasponi i dati del prodotto corrente
+  transposed <- as.data.frame(t(split_data_modified[[types_of_product[i]]]))
+  
+  # Aggiungi il dataframe alla lista
+  transposed_data[[i]] <- transposed
+}
+# Ciclo for per iterare su ogni dataframe nella lista
+for (i in 1:length(transposed_data)) {
+  # Estrai il dataframe corrente
+  df <- transposed_data[[i]]
+  
+  # Estrai i nomi della prima riga
+  col_names <- as.character(df[1, ])
+  
+  # Assegna i nomi della prima riga come nomi delle variabili del dataframe
+  colnames(df) <- col_names
+  
+  # Rimuovi la prima riga dal dataframe
+  df <- df[-1, ]
+  
+  # Aggiorna il dataframe nella lista
+  transposed_data[[i]] <- df
+}
+# Ciclo for per iterare su ogni dataframe nella lista
+for (i in 1:length(transposed_data)) {
+  # Estrai il dataframe corrente
+  df <- transposed_data[[i]]
+  
+  # Trasforma i dati in numerici
+  df <- sapply(df, as.numeric)
+  
+  # Aggiorna il dataframe nella lista
+  transposed_data[[i]] <- df
+  transposed_data[[i]]=as.data.frame(transposed_data[[i]])
+}
+
+# Ciclo for per iterare su ogni dataframe nella lista
+for (i in 1:length(transposed_data)) {
+  # Estrai il dataframe corrente
+  df <- transposed_data[[i]]
+  
+  # Aggiungi la colonna "Year" con gli anni dal 2000 al 2019
+  df <- df %>%
+    mutate(Year = 2000:2019) %>%
+    relocate(Year, .before = 1)
+  
+  # Aggiorna il dataframe nella lista
+  transposed_data[[i]] <- df
+}
+
+GDP_T=t(GDP)
+as.data.frame(GDP_T)
+
+# Estrai i nomi della prima riga
+col_names <- as.character(GDP_T[1, ])
+  
+  # Assegna i nomi della prima riga come nomi delle variabili del dataframe
+colnames(GDP_T) <- col_names
+  # Rimuovi la prima riga dal dataframe
+GDP_T <- GDP_T[-1, ]
+GDP_T=as.data.frame(GDP_T)
+
+# Trasforma i dati in numerici
+GDP_T <- sapply(GDP_T[-1], as.numeric)
+GDP_T <- head(GDP_T, n = nrow(GDP_T) - 1)
+
+GDP_T=as.data.frame(GDP_T)
+# Aggiungi la colonna "Year" con gli anni dal 2000 al 2019
+GDP_T <- GDP_T %>%
+  mutate(Year = 2000:2019) %>%
+  relocate(Year, .before = 1)
+
+correlation_list <- list()  # Crea una lista vuota per la correlazione
+for (k in 1:length(types_of_product)) {
+  # Ottieni i nomi delle colonne dal dataframe transposed_data[[k]]
+  col_names <- colnames(transposed_data[[k]])
+  
+  # Seleziona solo le colonne di GDP_T con i nomi corrispondenti
+  GDP_T_filtered <- GDP_T[, intersect(col_names, colnames(GDP_T))]
+  col_names <- colnames(GDP_T)
+  
+  transposed_data_filtered <- transposed_data[[k]][, intersect(col_names, colnames(transposed_data[[k]]))]
+  
+  # Calcola la correlazione tra consumo di carbone e PIL per ogni paese
+  correlation <- sapply(1:ncol(transposed_data_filtered), function(i) {
+    cor(transposed_data_filtered[, i], GDP_T_filtered[, i])
+  })
+  
+  # Crea un vettore con i nomi dei paesi
+  paesi <- colnames(transposed_data_filtered)[-1]
+  
+  # Crea una lista temporanea per la correlazione
+  temp_list <- list(paesi = paesi, correlation = correlation[-1])
+  
+  # Sostituisci i valori NA con 0 nella correlazione
+  temp_list$correlation[is.na(temp_list$correlation)] <- 0
+  
+  # Aggiungi la lista temporanea alla correlazione_list
+  correlation_list[[k]] <- temp_list
+}
+
+
+
+```
+
+```{r}
+types_of_product
+correlation_df <- as.data.frame(correlation_list[1]) #arriva fino a 13, type of product [[2,9,10,12]]  non serve
+correlation_df
+# Rimuovi la riga 23 dal dataframe correlation_df
+correlation_df <- correlation_df[-23, ]
+
+# Seleziona solo le prime 20 osservazioni dal dataframe correlation_df
+
+# Plottaggio del grafico a barre con personalizzazioni
+ggplot(correlation_df[1:30,], aes(x = paesi, y = correlation)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "", y = "Correlazione") +
+  ggtitle("Correlazione tra Carbone e GDP") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.margin = unit(c(2, 10, 2, 2), "lines"))
+
+correlation_df <- as.data.frame(correlation_list[11]) #arriva fino a 13, type of product [[2,9,10,12]]  non serve
+correlation_df
+# Rimuovi la riga 23 dal dataframe correlation_df
+correlation_df <- correlation_df[-23, ]
+
+# Seleziona solo le prime 20 osservazioni dal dataframe correlation_df
+# Plottaggio del grafico a barre con personalizzazioni
+ggplot(correlation_df[61:90,], aes(x = paesi, y = correlation)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "", y = "Correlazione") +
+  ggtitle("Correlazione tra Petrolio e GDP") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.margin = unit(c(2, 10, 2, 2), "lines"))
+
+
+correlation_df <- as.data.frame(correlation_list[8]) #arriva fino a 13, type of product [[2,9,10,12]]  non serve
+correlation_df
+# Rimuovi la riga 23 dal dataframe correlation_df
+correlation_df <- correlation_df[-23, ]
+
+# Seleziona solo le prime 20 osservazioni dal dataframe correlation_df
+# Plottaggio del grafico a barre con personalizzazioni
+ggplot(correlation_df[31:60,], aes(x = paesi, y = correlation)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "", y = "Correlazione") +
+  ggtitle("Correlazione tra Gas e GDP") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.margin = unit(c(2, 10, 2, 2), "lines"))
+
+correlation_df <- as.data.frame(correlation_list[3]) #arriva fino a 13, type of product [[2,9,10,12]]  non serve
+correlation_df
+# Rimuovi la riga 23 dal dataframe correlation_df
+correlation_df <- correlation_df[-23, ]
+
+# Seleziona solo le prime 20 osservazioni dal dataframe correlation_df
+# Plottaggio del grafico a barre con personalizzazioni
+ggplot(correlation_df[91:120,], aes(x = paesi, y = correlation)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "", y = "Correlazione") +
+  ggtitle("Correlazione tra Agricoltura e GDP") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.margin = unit(c(2, 10, 2, 2), "lines"))
+
+```

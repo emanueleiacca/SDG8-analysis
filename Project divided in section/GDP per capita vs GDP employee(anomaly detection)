@@ -1,0 +1,79 @@
+#GDP_PCAP, Annual growth rate of real GDP per capita (%) 8.1.1
+```{r}
+library(readxl)
+
+# Leggi il file Excel 
+GDP_PCAP <- read_excel("C:/Users/39388/Downloads/dataset/NY_GDP_PCAP.xlsx")
+cols_to_remove <- c("Goal", "Target", "Indicator", "SeriesCode", "SeriesDescription", 
+                    "GeoAreaCode", "BasePeriod", "Source", "Units", "Observation Status", 
+                    "Nature", "Reporting Type","Time_Detail")
+GDP_PCAP <- GDP_PCAP[, !(names(GDP_PCAP) %in% cols_to_remove)]
+head(GDP_PCAP)
+sum(is.na(GDP_PCAP))
+
+```
+
+```{r}
+# seleziona solo le righe con nomi di paese diversi da quelli specificati
+GDP_PCAP <- subset(GDP_PCAP, !(GeoAreaName %in% c("Curaçao", "Sint Maarten (Dutch part)", "South Sudan", "Sudan")))
+GDP_PCAP <- GDP_PCAP %>%
+  filter(GeoAreaName %in% HDI_clusters_combined_num$Country)
+sum(is.na(GDP_PCAP))
+```
+
+
+
+#SL_EMP_PCAP, Annual growth rate of real GDP per employed person (%) 8.2.1
+```{r}
+library(readxl)
+
+# Leggi il file Excel
+SL_EMP_PCAP <- read_excel("C:/Users/39388/Downloads/dataset/SL_EMP_PCAP.xlsx")
+cols_to_remove <- c("Goal", "Target", "Indicator", "SeriesCode", "SeriesDescription", 
+                    "GeoAreaCode", "BasePeriod", "Source", "Units", "Observation Status", 
+                    "Nature", "Reporting Type","Time_Detail")
+SL_EMP_PCAP <- SL_EMP_PCAP[, !(names(SL_EMP_PCAP) %in% cols_to_remove)]
+head(SL_EMP_PCAP)
+SL_EMP_PCAP <- SL_EMP_PCAP %>%
+  filter(GeoAreaName %in% HDI_clusters_combined_num$Country)
+sum(is.na(SL_EMP_PCAP))
+
+```
+
+```{r}
+SL_EMP_PCAP <- subset(SL_EMP_PCAP, !(GeoAreaName %in% c("Curaçao", "Sint Maarten (Dutch part)", "South Sudan", "Sudan")))
+```
+
+```{r}
+
+
+# Confronto dei nomi delle righe
+diff_gdp_sl <- setdiff(GDP_PCAP$GeoAreaName, SL_EMP_PCAP$GeoAreaName)
+diff_sl_gdp <- setdiff(SL_EMP_PCAP$GeoAreaName, GDP_PCAP$GeoAreaName)
+
+
+
+GDP_PCAP <- subset(GDP_PCAP, !(GeoAreaName %in% diff_gdp_sl))
+SL_EMP_PCAP <- subset(SL_EMP_PCAP, !(GeoAreaName %in% diff_sl_gdp))
+SL_EMP_PCAP$GeoAreaName
+```
+
+###Confronto SL_PCAP e GDP_PCAP
+```{r}
+GDP_PCAP_clean <- GDP_PCAP[, -1]
+SL_EMP_PCAP_clean <- SL_EMP_PCAP[, -c(1, ncol(SL_EMP_PCAP))]
+
+GDP_PCAP_clean[] <- lapply(GDP_PCAP_clean, as.numeric)
+SL_EMP_PCAP_clean[] <- lapply(SL_EMP_PCAP_clean, as.numeric)
+diff <- SL_EMP_PCAP_clean - GDP_PCAP_clean
+# Esporta il dataset "diff" in formato Excel
+write.table(diff, "diff1.xls", sep="\t", quote=FALSE)
+SL_EMP_PCAP$GeoAreaName
+write.table(SL_EMP_PCAP$GeoAreaName, "geo.xls", sep="\t", quote=FALSE)
+
+```
+Se il tasso di crescita del PIL pro capite è maggiore del tasso di crescita del PIL per persona impiegata, questo potrebbe indicare che il paese sta generando nuovi posti di lavoro, ma che il reddito medio per lavoratore non sta aumentando molto velocemente. D'altra parte, se il tasso di crescita del PIL per persona impiegata è maggiore del tasso di crescita del PIL pro capite, questo potrebbe indicare che il paese sta migliorando la produttività del lavoro e l'efficienza economica, ma che la crescita della popolazione potrebbe limitare la crescita del PIL pro capite.
+
+se il tasso di crescita del PIL pro capite è costantemente maggiore del tasso di crescita del PIL per persona impiegata, potrebbe indicare che il paese sta investendo nella creazione di nuovi posti di lavoro, ma il reddito medio per lavoratore non sta aumentando molto velocemente. In questo caso, il paese potrebbe avere un alto tasso di disoccupazione o lavoratori che sono sottopagati rispetto alla media globale.
+
+D'altra parte, se il tasso di crescita del PIL per persona impiegata è costantemente maggiore del tasso di crescita del PIL pro capite, potrebbe indicare che il paese sta migliorando la produttività del lavoro e l'efficienza economica, ma la crescita della popolazione potrebbe limitare la crescita del PIL pro capite
